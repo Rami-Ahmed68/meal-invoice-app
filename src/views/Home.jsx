@@ -6,7 +6,7 @@ import {
   Card,
   CardBody,
   VStack,
-  HStack,
+  // HStack, // تم حذفه لأنه غير مستخدم
   Button,
   NumberInput,
   NumberInputField,
@@ -76,7 +76,7 @@ export const Home = () => {
         ? defaultPrice.toString()
         : "",
     );
-  }, [selectedMeal]);
+  }, [selectedMeal, mealType]); // ✅ تمت إضافة mealType
 
   // تحديث السعر عند تغيير نوع الوجبة (للحالة both فقط)
   useEffect(() => {
@@ -114,7 +114,7 @@ export const Home = () => {
       id: Date.now(),
       mealId: selectedMeal.id,
       mealName: selectedMeal.name,
-      type: mealType, // 'sandwich', 'meal', أو 'single'
+      type: mealType,
       price: price,
       quantity: quantity,
       total: price * quantity,
@@ -174,7 +174,6 @@ export const Home = () => {
               تعديل السعر والكمية لـ {selectedMeal.name}
             </Text>
             <SimpleGrid columns={{ base: 1, md: 4 }} spacing={4}>
-              {/* إظهار خيار نوع الوجبة فقط إذا كانت availableTypes === 'both' */}
               {selectedMeal.availableTypes === "both" && (
                 <Box>
                   <Text mb={2}>نوع الوجبة:</Text>

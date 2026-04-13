@@ -35,13 +35,13 @@ const Sidebar = () => {
     <Box
       as="aside"
       w="260px"
-      bg="card-bg" // استخدام اللون المعرف في semanticTokens (أبيض نهار، رمادي داكن ليل)
+      bg="card-bg"
       h="100vh"
       position="fixed"
       top="0"
       right="0"
       borderLeft="1px solid"
-      borderColor="border-default" // لون الحدود المتغير حسب الوضع
+      borderColor="border-default"
       p={4}
       zIndex="sticky"
       boxShadow="sm">
@@ -69,9 +69,11 @@ const Sidebar = () => {
                   p={3}
                   borderRadius="md"
                   bg={isActive ? "blue.100" : "transparent"}
-                  _dark={{ bg: isActive ? "blue.900" : "transparent" }}
+                  _dark={{
+                    bg: isActive ? "blue.900" : "transparent",
+                    color: isActive ? "blue.300" : "text.mutedDark",
+                  }}
                   color={isActive ? "blue.600" : "text.muted"}
-                  _dark={{ color: isActive ? "blue.300" : "text.mutedDark" }}
                   _hover={{
                     bg: isActive ? "blue.100" : "gray.100",
                     _dark: { bg: isActive ? "blue.900" : "gray.700" },

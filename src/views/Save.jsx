@@ -27,7 +27,6 @@ import {
   Th,
   Td,
   Badge,
-  HStack,
 } from "@chakra-ui/react";
 import { useApp } from "../context/data";
 
