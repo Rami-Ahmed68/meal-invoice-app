@@ -43,13 +43,10 @@ export const Home = () => {
     return number.toLocaleString("en-US").replace(/,/g, ".");
   };
 
-  // تحديث السعر ونوع الوجبة تلقائياً عند اختيار وجبة جديدة
   useEffect(() => {
     if (!selectedMeal) return;
-
     let defaultType = "sandwich";
     let defaultPrice = null;
-
     if (selectedMeal.availableTypes === "single") {
       defaultType = "single";
       defaultPrice = selectedMeal.singlePrice;
@@ -66,7 +63,6 @@ export const Home = () => {
           ? selectedMeal.sandwichPrice
           : selectedMeal.mealPrice;
     }
-
     setMealType(defaultType);
     setCustomPrice(
       defaultPrice !== undefined && defaultPrice !== null
@@ -75,7 +71,6 @@ export const Home = () => {
     );
   }, [selectedMeal, mealType]);
 
-  // تحديث السعر عند تغيير نوع الوجبة (للحالة both فقط)
   useEffect(() => {
     if (selectedMeal && selectedMeal.availableTypes === "both") {
       const price =
@@ -140,24 +135,10 @@ export const Home = () => {
     toast({ title: "تم إصدار الفاتورة بنجاح", status: "success" });
   };
 
-  const getDisplayPrice = (meal) => {
-    if (meal.availableTypes === "single") {
-      return `${formatNumber(meal.singlePrice)} ₪`;
-    } else if (meal.availableTypes === "sandwich_only") {
-      return `${formatNumber(meal.sandwichPrice)} ₪ (صندويشة)`;
-    } else if (meal.availableTypes === "meal_only") {
-      return `${formatNumber(meal.mealPrice)} ₪ (وجبة)`;
-    } else if (meal.availableTypes === "both") {
-      return `${formatNumber(meal.sandwichPrice)} / ${formatNumber(meal.mealPrice)} ₪`;
-    }
-    return "سعر غير محدد";
-  };
-
   const columnHeight = "calc(100vh - 120px)";
 
   return (
     <Box>
-      {/* كرت تعديل السعر والكمية - يظهر فقط عند اختيار وجبة */}
       {selectedMeal && (
         <Card
           mt={6}
@@ -234,7 +215,6 @@ export const Home = () => {
         </Card>
       )}
 
-      {/* الأعمدة الثلاثة */}
       <Flex direction={{ base: "column", lg: "row" }} gap={6}>
         {/* العمود 1: الأصناف */}
         <Box
@@ -340,7 +320,6 @@ export const Home = () => {
                           }}>
                           {meal.name}
                         </Text>
-
                         {meal.availableTypes === "single" && (
                           <Text
                             fontSize="md"
@@ -349,7 +328,6 @@ export const Home = () => {
                             {formatNumber(meal.singlePrice)} ₪
                           </Text>
                         )}
-
                         {meal.availableTypes === "sandwich_only" && (
                           <Text
                             fontSize="md"
@@ -358,7 +336,6 @@ export const Home = () => {
                             صندويشة: {formatNumber(meal.sandwichPrice)} ₪
                           </Text>
                         )}
-
                         {meal.availableTypes === "meal_only" && (
                           <Text
                             fontSize="md"
@@ -367,7 +344,6 @@ export const Home = () => {
                             وجبة: {formatNumber(meal.mealPrice)} ₪
                           </Text>
                         )}
-
                         {meal.availableTypes === "both" && (
                           <>
                             <Text
@@ -399,7 +375,6 @@ export const Home = () => {
           )}
         </Box>
 
-        {/* العمود 3: سلة الفاتورة */}
         {/* العمود 3: سلة الفاتورة */}
         <Box
           w={{ base: "100%", lg: "360px" }}
