@@ -278,7 +278,7 @@ export const Home = () => {
         {/* العمود 2: الوجبات المتاحة */}
         <Box flex="2" h={columnHeight} overflowY="auto">
           {selectedCategoryId ? (
-            <Card h="full">
+            <Card h="full" overflowY="auto">
               <CardBody>
                 <Text fontWeight="bold" mb={4}>
                   🍽️ الوجبات المتاحة
@@ -286,23 +286,105 @@ export const Home = () => {
                 {filteredMeals.length === 0 ? (
                   <Text color="gray.500">لا توجد وجبات في هذا الصنف</Text>
                 ) : (
-                  <Wrap spacing={3}>
+                  <SimpleGrid columns={{ base: 1, sm: 2, md: 3 }} spacing={4}>
                     {filteredMeals.map((meal) => (
-                      <WrapItem key={meal.id}>
-                        <Button
-                          variant={
-                            selectedMeal?.id === meal.id ? "solid" : "outline"
+                      <Box
+                        key={meal.id}
+                        as="button"
+                        onClick={() => handleSelectMeal(meal)}
+                        bg={
+                          selectedMeal?.id === meal.id ? "blue.100" : "card-bg"
+                        }
+                        _dark={{
+                          bg:
+                            selectedMeal?.id === meal.id
+                              ? "blue.800"
+                              : "gray.700",
+                        }}
+                        p={4}
+                        borderRadius="xl"
+                        borderWidth="2px"
+                        borderStyle="double"
+                        borderColor={
+                          selectedMeal?.id === meal.id
+                            ? "blue.500"
+                            : "border-default"
+                        }
+                        transition="all 0.2s ease"
+                        shadow={selectedMeal?.id === meal.id ? "lg" : "sm"}
+                        style={{ border: "2px solid #41749d" }}
+                        _hover={{
+                          transform: "scale(1.02)",
+                          shadow: "lg",
+                          borderColor: "blue.400",
+                        }}
+                        cursor="pointer"
+                        textAlign="center"
+                        w="100%">
+                        <Text
+                          fontWeight="bold"
+                          fontSize="lg"
+                          mb={2}
+                          color={
+                            selectedMeal?.id === meal.id
+                              ? "blue.600"
+                              : "text.primary"
                           }
-                          colorScheme={
-                            selectedMeal?.id === meal.id ? "green" : "blue"
-                          }
-                          onClick={() => handleSelectMeal(meal)}
-                          size="lg">
-                          {meal.name} ({getDisplayPrice(meal)})
-                        </Button>
-                      </WrapItem>
+                          _dark={{
+                            color:
+                              selectedMeal?.id === meal.id
+                                ? "blue.200"
+                                : "white",
+                          }}>
+                          {meal.name}
+                        </Text>
+
+                        {meal.availableTypes === "single" && (
+                          <Text
+                            fontSize="md"
+                            color="text.muted"
+                            _dark={{ color: "gray.300" }}>
+                            {formatNumber(meal.singlePrice)} ₪
+                          </Text>
+                        )}
+
+                        {meal.availableTypes === "sandwich_only" && (
+                          <Text
+                            fontSize="md"
+                            color="text.muted"
+                            _dark={{ color: "gray.300" }}>
+                            صندويشة: {formatNumber(meal.sandwichPrice)} ₪
+                          </Text>
+                        )}
+
+                        {meal.availableTypes === "meal_only" && (
+                          <Text
+                            fontSize="md"
+                            color="text.muted"
+                            _dark={{ color: "gray.300" }}>
+                            وجبة: {formatNumber(meal.mealPrice)} ₪
+                          </Text>
+                        )}
+
+                        {meal.availableTypes === "both" && (
+                          <>
+                            <Text
+                              fontSize="md"
+                              color="text.muted"
+                              _dark={{ color: "gray.300" }}>
+                              صندويشة: {formatNumber(meal.sandwichPrice)} ₪
+                            </Text>
+                            <Text
+                              fontSize="md"
+                              color="text.muted"
+                              _dark={{ color: "gray.300" }}>
+                              وجبة: {formatNumber(meal.mealPrice)} ₪
+                            </Text>
+                          </>
+                        )}
+                      </Box>
                     ))}
-                  </Wrap>
+                  </SimpleGrid>
                 )}
               </CardBody>
             </Card>

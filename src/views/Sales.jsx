@@ -30,6 +30,7 @@ import {
   Card,
   CardBody,
   useColorModeValue,
+  Button,
 } from "@chakra-ui/react";
 import { useApp } from "../context/data";
 
@@ -42,12 +43,22 @@ export const Sales = () => {
     weeklyRecords,
   } = useApp();
   const [tabIndex, setTabIndex] = useState(0);
+  const [allTotal, setAllTotal] = useState(0);
+  const [allCount, setAllCount] = useState(0);
 
   const formatNumber = (num) => {
     if (num === undefined || num === null) return "0";
     const number = typeof num === "number" ? num : parseFloat(num);
     if (isNaN(number)) return "0";
     return number.toLocaleString("en-US").replace(/,/g, ".");
+  };
+
+  // حساب إجمالي جميع الفواتير وعددها
+  const calculateAllTotals = () => {
+    const total = invoices.reduce((sum, inv) => sum + inv.total, 0);
+    const count = invoices.length;
+    setAllTotal(total);
+    setAllCount(count);
   };
 
   const getBasePrice = (meal, type) => {
@@ -71,12 +82,12 @@ export const Sales = () => {
     return { ...sale, meal, basePrice, discounted };
   });
 
-  // إحصائيات اليوم والأمس (المبالغ، عدد الفواتير، عدد المواد الفريدة)
+  // إحصائيات اليوم والأمس (باستخدام مقارنة النصوص YYYY-MM-DD)
   const getDailyStats = () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const yesterdayDate = new Date();
+    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    const yesterdayStr = yesterdayDate.toISOString().slice(0, 10);
 
     let todayTotal = 0,
       yesterdayTotal = 0;
@@ -86,28 +97,18 @@ export const Sales = () => {
       yesterdayUniqueItems = new Set();
 
     invoices.forEach((inv) => {
-      const invDate = new Date(inv.date);
-      invDate.setHours(0, 0, 0, 0);
-      const isToday = invDate.getTime() === today.getTime();
-      const isYesterday = invDate.getTime() === yesterday.getTime();
-
-      if (isToday || isYesterday) {
-        if (isToday) {
-          todayTotal += inv.total;
-          todayInvoiceCount++;
-        } else if (isYesterday) {
-          yesterdayTotal += inv.total;
-          yesterdayInvoiceCount++;
-        }
-
-        // جمع المواد الفريدة (كل مادة + نوعها تحسب مرة واحدة)
+      const invDateStr = new Date(inv.date).toISOString().slice(0, 10);
+      if (invDateStr === todayStr) {
+        todayTotal += inv.total;
+        todayInvoiceCount++;
         inv.items.forEach((item) => {
-          const uniqueKey = `${item.mealId}_${item.type}`;
-          if (isToday) {
-            todayUniqueItems.add(uniqueKey);
-          } else if (isYesterday) {
-            yesterdayUniqueItems.add(uniqueKey);
-          }
+          todayUniqueItems.add(`${item.mealId}_${item.type}`);
+        });
+      } else if (invDateStr === yesterdayStr) {
+        yesterdayTotal += inv.total;
+        yesterdayInvoiceCount++;
+        inv.items.forEach((item) => {
+          yesterdayUniqueItems.add(`${item.mealId}_${item.type}`);
         });
       }
     });
@@ -182,6 +183,22 @@ export const Sales = () => {
     <Box>
       <Heading mb={6}>المبيعات والتقارير</Heading>
 
+      {/* بطاقة إجمالي جميع الفواتير (مع زر الحساب) */}
+      <Card mb={6} bg={bgCard} borderWidth="1px" borderColor={borderColor}>
+        <CardBody>
+          <Flex justify="space-between" align="center" wrap="wrap" gap={4}>
+            <Stat>
+              <StatLabel>📊 إجمالي الفواتير (جميع المبيعات)</StatLabel>
+              <StatNumber>{formatNumber(allTotal)} ₪</StatNumber>
+              <StatHelpText>عدد الفواتير الإجمالي: {allCount}</StatHelpText>
+            </Stat>
+            <Button colorScheme="blue" onClick={calculateAllTotals}>
+              حساب الإجمالي
+            </Button>
+          </Flex>
+        </CardBody>
+      </Card>
+
       {/* إحصائيات اليوم والأمس (مبلغ + فواتير + مواد فريدة) */}
       <Card mb={6} bg={bgCard} borderWidth="1px" borderColor={borderColor}>
         <CardBody>
@@ -203,6 +220,7 @@ export const Sales = () => {
       </Card>
 
       <Tabs index={tabIndex} onChange={setTabIndex} isLazy>
+        {/* باقي الكود كما هو دون تغيير */}
         <TabList>
           <Tab>الفواتير (جميع الفواتير)</Tab>
           <Tab>تقرير المبيعات المجمّع (حسب السعر)</Tab>
@@ -210,7 +228,7 @@ export const Sales = () => {
         </TabList>
 
         <TabPanels>
-          {/* الفواتير - بدون تغيير */}
+          {/* الفواتير */}
           <TabPanel p={0} pt={4}>
             {invoices.length === 0 ? (
               <Text>لا توجد فواتير حتى الآن.</Text>
@@ -302,7 +320,7 @@ export const Sales = () => {
             )}
           </TabPanel>
 
-          {/* التقرير المجمع - بدون تغيير */}
+          {/* التقرير المجمع */}
           <TabPanel p={0} pt={4}>
             {aggregatedSales.length === 0 ? (
               <Text>لا توجد مبيعات مسجلة.</Text>
@@ -373,7 +391,7 @@ export const Sales = () => {
             )}
           </TabPanel>
 
-          {/* الإحصائيات الأسبوعية من السجلات المحفوظة */}
+          {/* الإحصائيات الأسبوعية */}
           <TabPanel p={0} pt={4}>
             <Card mb={4} bg={bgCard} borderColor={todayPerformance.color}>
               <CardBody>
