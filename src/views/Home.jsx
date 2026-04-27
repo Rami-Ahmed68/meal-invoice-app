@@ -277,6 +277,10 @@ export const Home = () => {
                             selectedMeal?.id === meal.id
                               ? "blue.800"
                               : "gray.700",
+                          borderColor:
+                            selectedMeal?.id === meal.id
+                              ? "blue.400"
+                              : "gray.600",
                         }}
                         p={4}
                         borderRadius="xl"
@@ -287,12 +291,6 @@ export const Home = () => {
                             ? "blue.500"
                             : "border-default"
                         }
-                        _dark={{
-                          borderColor:
-                            selectedMeal?.id === meal.id
-                              ? "blue.400"
-                              : "gray.600",
-                        }}
                         transition="all 0.2s ease"
                         shadow={selectedMeal?.id === meal.id ? "lg" : "sm"}
                         _hover={{
