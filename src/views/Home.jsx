@@ -6,7 +6,6 @@ import {
   Card,
   CardBody,
   VStack,
-  // HStack, // تم حذفه لأنه غير مستخدم
   Button,
   NumberInput,
   NumberInputField,
@@ -17,8 +16,6 @@ import {
   useToast,
   Badge,
   Flex,
-  Wrap,
-  WrapItem,
   Radio,
   RadioGroup,
   Stack,
@@ -63,7 +60,7 @@ export const Home = () => {
       defaultType = "meal";
       defaultPrice = selectedMeal.mealPrice;
     } else if (selectedMeal.availableTypes === "both") {
-      defaultType = mealType; // نستخدم القيمة الحالية (sandwich/meal)
+      defaultType = mealType;
       defaultPrice =
         defaultType === "sandwich"
           ? selectedMeal.sandwichPrice
@@ -76,7 +73,7 @@ export const Home = () => {
         ? defaultPrice.toString()
         : "",
     );
-  }, [selectedMeal, mealType]); // ✅ تمت إضافة mealType
+  }, [selectedMeal, mealType]);
 
   // تحديث السعر عند تغيير نوع الوجبة (للحالة both فقط)
   useEffect(() => {
@@ -310,9 +307,14 @@ export const Home = () => {
                             ? "blue.500"
                             : "border-default"
                         }
+                        _dark={{
+                          borderColor:
+                            selectedMeal?.id === meal.id
+                              ? "blue.400"
+                              : "gray.600",
+                        }}
                         transition="all 0.2s ease"
                         shadow={selectedMeal?.id === meal.id ? "lg" : "sm"}
-                        style={{ border: "2px solid #41749d" }}
                         _hover={{
                           transform: "scale(1.02)",
                           shadow: "lg",
