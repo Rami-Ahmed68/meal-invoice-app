@@ -33,7 +33,6 @@ import {
   Button,
   Wrap,
   WrapItem,
-  Icon,
 } from "@chakra-ui/react";
 import { useApp } from "../context/data";
 
