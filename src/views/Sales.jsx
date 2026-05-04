@@ -31,6 +31,9 @@ import {
   CardBody,
   useColorModeValue,
   Button,
+  Wrap,
+  WrapItem,
+  Icon,
 } from "@chakra-ui/react";
 import { useApp } from "../context/data";
 
@@ -174,6 +177,43 @@ export const Sales = () => {
         : 0
       : (differenceFromAvg / savedRecordsAvg) * 100;
 
+  // ---- تجميع حسب الكلمات المفتاحية ----
+  const keywordGroups = useMemo(() => {
+    const keywords = [
+      { word: "شاورما", display: "شاورما", color: "orange", icon: "🍢" },
+      { word: "بطاطا", display: "بطاطا", color: "yellow", icon: "🍟" },
+      { word: "فروج", display: "فروج", color: "green", icon: "🍗" },
+      { word: "لحم", display: "لحم", color: "red", icon: "🥩" },
+      { word: "كفتة", display: "كفتة", color: "brown", icon: "🍘" },
+      { word: "توم", display: "توم", color: "purple", icon: "🧄" },
+      { word: "سلطة", display: "سلطة", color: "green", icon: "🥗" },
+      { word: "مشروبات", display: "مشروبات", color: "cyan", icon: "🥤" },
+    ];
+
+    const result = keywords.map((kw) => ({
+      ...kw,
+      totalAmount: 0,
+      totalQuantity: 0,
+      invoiceCount: 0,
+    }));
+
+    invoices.forEach((inv) => {
+      inv.items.forEach((item) => {
+        const itemName = item.mealName.toLowerCase();
+        for (const kw of result) {
+          if (itemName.includes(kw.word.toLowerCase())) {
+            kw.totalAmount += item.total;
+            kw.totalQuantity += item.quantity;
+            kw.invoiceCount += 1;
+          }
+        }
+      });
+    });
+
+    // إزالة الفئات التي ليس لها مبيعات
+    return result.filter((kw) => kw.totalAmount > 0);
+  }, [invoices]);
+
   const bgCard = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.700");
   const redBg = useColorModeValue("red.50", "red.900");
@@ -220,11 +260,11 @@ export const Sales = () => {
       </Card>
 
       <Tabs index={tabIndex} onChange={setTabIndex} isLazy>
-        {/* باقي الكود كما هو دون تغيير */}
         <TabList>
           <Tab>الفواتير (جميع الفواتير)</Tab>
           <Tab>تقرير المبيعات المجمّع (حسب السعر)</Tab>
           <Tab>الإحصائيات الأسبوعية (من السجلات المحفوظة)</Tab>
+          <Tab>تجميع حسب الكلمات المفتاحية</Tab>
         </TabList>
 
         <TabPanels>
@@ -366,7 +406,9 @@ export const Sales = () => {
                           <StatHelpText>
                             السعر الأساسي: {formatNumber(sale.basePrice)} ₪
                             {sale.discounted &&
-                              ` (تخفيض ${formatNumber(sale.basePrice - sale.price)} ₪)`}
+                              ` (تخفيض ${formatNumber(
+                                sale.basePrice - sale.price,
+                              )} ₪)`}
                           </StatHelpText>
                         )}
                       </Stat>
@@ -460,6 +502,47 @@ export const Sales = () => {
                   })}
                 </Tbody>
               </Table>
+            )}
+          </TabPanel>
+
+          {/* تجميع حسب الكلمات المفتاحية */}
+          <TabPanel p={0} pt={4}>
+            {keywordGroups.length === 0 ? (
+              <Text>لا توجد مبيعات تطابق الكلمات المفتاحية.</Text>
+            ) : (
+              <Wrap spacing={6}>
+                {keywordGroups.map((group) => (
+                  <WrapItem key={group.word}>
+                    <Card
+                      minW="260px"
+                      bg={bgCard}
+                      borderTop="4px solid"
+                      borderTopColor={`${group.color}.500`}
+                      boxShadow="md">
+                      <CardBody>
+                        <Flex align="center" gap={2} mb={3}>
+                          <Text fontSize="2xl">{group.icon}</Text>
+                          <Heading size="md">{group.display}</Heading>
+                        </Flex>
+                        <Stat mb={2}>
+                          <StatLabel>إجمالي المبلغ</StatLabel>
+                          <StatNumber color={`${group.color}.500`}>
+                            {formatNumber(group.totalAmount)} ₪
+                          </StatNumber>
+                        </Stat>
+                        <Stat mb={2}>
+                          <StatLabel>الكمية المباعة</StatLabel>
+                          <StatNumber>{group.totalQuantity}</StatNumber>
+                        </Stat>
+                        <Stat>
+                          <StatLabel>عدد الفواتير</StatLabel>
+                          <StatNumber>{group.invoiceCount}</StatNumber>
+                        </Stat>
+                      </CardBody>
+                    </Card>
+                  </WrapItem>
+                ))}
+              </Wrap>
             )}
           </TabPanel>
         </TabPanels>
