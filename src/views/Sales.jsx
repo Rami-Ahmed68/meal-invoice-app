@@ -33,7 +33,11 @@ import {
   Button,
   Wrap,
   WrapItem,
+  Input,
+  InputGroup,
+  InputLeftElement,
 } from "@chakra-ui/react";
+import { SearchIcon } from "@chakra-ui/icons";
 import { useApp } from "../context/data";
 
 export const Sales = () => {
@@ -43,10 +47,14 @@ export const Sales = () => {
     getAggregatedSalesByMeal,
     getTotalSalesToday,
     weeklyRecords,
+    getCategoryName,
   } = useApp();
   const [tabIndex, setTabIndex] = useState(0);
   const [allTotal, setAllTotal] = useState(0);
   const [allCount, setAllCount] = useState(0);
+  const [groupingMode, setGroupingMode] = useState("exact"); // 'exact', 'customKeyword', 'category'
+  const [customKeywords, setCustomKeywords] = useState("");
+  const [customGroups, setCustomGroups] = useState([]);
 
   const formatNumber = (num) => {
     if (num === undefined || num === null) return "0";
@@ -55,7 +63,6 @@ export const Sales = () => {
     return number.toLocaleString("en-US").replace(/,/g, ".");
   };
 
-  // حساب إجمالي جميع الفواتير وعددها
   const calculateAllTotals = () => {
     const total = invoices.reduce((sum, inv) => sum + inv.total, 0);
     const count = invoices.length;
@@ -84,7 +91,6 @@ export const Sales = () => {
     return { ...sale, meal, basePrice, discounted };
   });
 
-  // إحصائيات اليوم والأمس (باستخدام مقارنة النصوص YYYY-MM-DD)
   const getDailyStats = () => {
     const todayStr = new Date().toISOString().slice(0, 10);
     const yesterdayDate = new Date();
@@ -176,42 +182,103 @@ export const Sales = () => {
         : 0
       : (differenceFromAvg / savedRecordsAvg) * 100;
 
-  // ---- تجميع حسب الكلمات المفتاحية ----
-  const keywordGroups = useMemo(() => {
-    const keywords = [
-      { word: "شاورما", display: "شاورما", color: "orange", icon: "🍢" },
-      { word: "بطاطا", display: "بطاطا", color: "yellow", icon: "🍟" },
-      { word: "فروج", display: "فروج", color: "green", icon: "🍗" },
-      { word: "لحم", display: "لحم", color: "red", icon: "🥩" },
-      { word: "كفتة", display: "كفتة", color: "brown", icon: "🍘" },
-      { word: "توم", display: "توم", color: "purple", icon: "🧄" },
-      { word: "سلطة", display: "سلطة", color: "green", icon: "🥗" },
-      { word: "مشروبات", display: "مشروبات", color: "cyan", icon: "🥤" },
-    ];
+  // ---- تجميع حسب الاسم الدقيق ----
+  const exactNameGroups = useMemo(() => {
+    const groups = new Map();
+    invoices.forEach((inv) => {
+      inv.items.forEach((item) => {
+        const name = item.mealName;
+        if (!groups.has(name)) {
+          groups.set(name, {
+            name: name,
+            totalAmount: 0,
+            totalQuantity: 0,
+            invoiceCount: 0,
+            types: new Set(),
+          });
+        }
+        const entry = groups.get(name);
+        entry.totalAmount += item.total;
+        entry.totalQuantity += item.quantity;
+        entry.invoiceCount += 1;
+        entry.types.add(item.type);
+      });
+    });
+    const result = Array.from(groups.values()).map((entry) => {
+      const mostCommonType =
+        entry.types.size === 1 ? Array.from(entry.types)[0] : "mixed";
+      return { ...entry, displayType: mostCommonType };
+    });
+    return result.sort((a, b) => b.totalQuantity - a.totalQuantity);
+  }, [invoices]);
 
-    const result = keywords.map((kw) => ({
-      ...kw,
-      totalAmount: 0,
-      totalQuantity: 0,
-      invoiceCount: 0,
-    }));
+  // ---- تجميع حسب الكلمات المفتاحية المخصصة ----
+  const handleKeywordGrouping = () => {
+    if (!customKeywords.trim()) {
+      setCustomGroups([]);
+      return;
+    }
+    const keywords = customKeywords
+      .split(/[\s,]+/)
+      .filter((k) => k.trim().length > 0)
+      .map((k) => k.toLowerCase());
+    if (keywords.length === 0) return;
+
+    const groups = new Map();
+    keywords.forEach((kw) => {
+      groups.set(kw, {
+        keyword: kw,
+        totalAmount: 0,
+        totalQuantity: 0,
+        invoiceCount: 0,
+      });
+    });
 
     invoices.forEach((inv) => {
       inv.items.forEach((item) => {
         const itemName = item.mealName.toLowerCase();
-        for (const kw of result) {
-          if (itemName.includes(kw.word.toLowerCase())) {
-            kw.totalAmount += item.total;
-            kw.totalQuantity += item.quantity;
-            kw.invoiceCount += 1;
+        for (const [kw, group] of groups.entries()) {
+          if (itemName.includes(kw)) {
+            group.totalAmount += item.total;
+            group.totalQuantity += item.quantity;
+            group.invoiceCount += 1;
           }
         }
       });
     });
 
-    // إزالة الفئات التي ليس لها مبيعات
-    return result.filter((kw) => kw.totalAmount > 0);
-  }, [invoices]);
+    const result = Array.from(groups.values()).filter((g) => g.totalAmount > 0);
+    setCustomGroups(result);
+  };
+
+  // ---- تجميع حسب الأصناف ----
+  const categoryGroups = useMemo(() => {
+    const groups = new Map(); // key = categoryId
+    invoices.forEach((inv) => {
+      inv.items.forEach((item) => {
+        const meal = meals.find((m) => m.id === item.mealId);
+        if (!meal) return;
+        const catId = meal.categoryId;
+        const catName = getCategoryName(catId);
+        if (!groups.has(catId)) {
+          groups.set(catId, {
+            categoryId: catId,
+            categoryName: catName,
+            totalAmount: 0,
+            totalQuantity: 0,
+            invoiceCount: 0,
+          });
+        }
+        const entry = groups.get(catId);
+        entry.totalAmount += item.total;
+        entry.totalQuantity += item.quantity;
+        entry.invoiceCount += 1;
+      });
+    });
+    return Array.from(groups.values()).sort(
+      (a, b) => b.totalAmount - a.totalAmount,
+    );
+  }, [invoices, meals, getCategoryName]);
 
   const bgCard = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.700");
@@ -222,7 +289,6 @@ export const Sales = () => {
     <Box>
       <Heading mb={6}>المبيعات والتقارير</Heading>
 
-      {/* بطاقة إجمالي جميع الفواتير (مع زر الحساب) */}
       <Card mb={6} bg={bgCard} borderWidth="1px" borderColor={borderColor}>
         <CardBody>
           <Flex justify="space-between" align="center" wrap="wrap" gap={4}>
@@ -238,7 +304,6 @@ export const Sales = () => {
         </CardBody>
       </Card>
 
-      {/* إحصائيات اليوم والأمس (مبلغ + فواتير + مواد فريدة) */}
       <Card mb={6} bg={bgCard} borderWidth="1px" borderColor={borderColor}>
         <CardBody>
           <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={4}>
@@ -263,11 +328,11 @@ export const Sales = () => {
           <Tab>الفواتير (جميع الفواتير)</Tab>
           <Tab>تقرير المبيعات المجمّع (حسب السعر)</Tab>
           <Tab>الإحصائيات الأسبوعية (من السجلات المحفوظة)</Tab>
-          <Tab>تجميع حسب الكلمات المفتاحية</Tab>
+          <Tab>تجميع المبيعات</Tab>
         </TabList>
 
         <TabPanels>
-          {/* الفواتير */}
+          {/* الفواتير - بدون تغيير */}
           <TabPanel p={0} pt={4}>
             {invoices.length === 0 ? (
               <Text>لا توجد فواتير حتى الآن.</Text>
@@ -504,44 +569,187 @@ export const Sales = () => {
             )}
           </TabPanel>
 
-          {/* تجميع حسب الكلمات المفتاحية */}
+          {/* تبويب تجميع المبيعات - ثلاثة خيارات */}
           <TabPanel p={0} pt={4}>
-            {keywordGroups.length === 0 ? (
-              <Text>لا توجد مبيعات تطابق الكلمات المفتاحية.</Text>
-            ) : (
-              <Wrap spacing={6}>
-                {keywordGroups.map((group) => (
-                  <WrapItem key={group.word}>
-                    <Card
-                      minW="260px"
-                      bg={bgCard}
-                      borderTop="4px solid"
-                      borderTopColor={`${group.color}.500`}
-                      boxShadow="md">
-                      <CardBody>
-                        <Flex align="center" gap={2} mb={3}>
-                          <Text fontSize="2xl">{group.icon}</Text>
-                          <Heading size="md">{group.display}</Heading>
-                        </Flex>
-                        <Stat mb={2}>
-                          <StatLabel>إجمالي المبلغ</StatLabel>
-                          <StatNumber color={`${group.color}.500`}>
-                            {formatNumber(group.totalAmount)} ₪
-                          </StatNumber>
-                        </Stat>
-                        <Stat mb={2}>
-                          <StatLabel>الكمية المباعة</StatLabel>
-                          <StatNumber>{group.totalQuantity}</StatNumber>
-                        </Stat>
-                        <Stat>
-                          <StatLabel>عدد الفواتير</StatLabel>
-                          <StatNumber>{group.invoiceCount}</StatNumber>
-                        </Stat>
-                      </CardBody>
-                    </Card>
-                  </WrapItem>
-                ))}
-              </Wrap>
+            <Flex mb={6} gap={4} wrap="wrap">
+              <Button
+                colorScheme={groupingMode === "exact" ? "blue" : "gray"}
+                onClick={() => {
+                  setGroupingMode("exact");
+                  setCustomGroups([]);
+                }}>
+                تجميع حسب الاسم الدقيق
+              </Button>
+              <Button
+                colorScheme={groupingMode === "customKeyword" ? "blue" : "gray"}
+                onClick={() => {
+                  setGroupingMode("customKeyword");
+                  setCustomGroups([]);
+                }}>
+                تجميع حسب كلمات مفتاحية مخصصة
+              </Button>
+              <Button
+                colorScheme={groupingMode === "category" ? "blue" : "gray"}
+                onClick={() => {
+                  setGroupingMode("category");
+                  setCustomGroups([]);
+                }}>
+                تجميع حسب الأصناف
+              </Button>
+            </Flex>
+
+            {/* الاسم الدقيق */}
+            {groupingMode === "exact" && (
+              <>
+                {exactNameGroups.length === 0 ? (
+                  <Text>لا توجد مبيعات مسجلة.</Text>
+                ) : (
+                  <Wrap spacing={6}>
+                    {exactNameGroups.map((group) => (
+                      <WrapItem key={group.name}>
+                        <Card
+                          minW="260px"
+                          bg={bgCard}
+                          borderTop="4px solid"
+                          borderTopColor="teal.500"
+                          boxShadow="md">
+                          <CardBody>
+                            <Heading size="md" mb={2}>
+                              {group.name}
+                            </Heading>
+                            <Badge mb={3} colorScheme="teal">
+                              {group.displayType === "sandwich"
+                                ? "صندويشة"
+                                : group.displayType === "meal"
+                                  ? "وجبة"
+                                  : group.displayType === "single"
+                                    ? "مادة مفردة"
+                                    : "أنواع متعددة"}
+                            </Badge>
+                            <Stat mb={2}>
+                              <StatLabel>إجمالي المبلغ</StatLabel>
+                              <StatNumber color="teal.500">
+                                {formatNumber(group.totalAmount)} ₪
+                              </StatNumber>
+                            </Stat>
+                            <Stat mb={2}>
+                              <StatLabel>الكمية المباعة</StatLabel>
+                              <StatNumber>{group.totalQuantity}</StatNumber>
+                            </Stat>
+                            <Stat>
+                              <StatLabel>عدد الفواتير</StatLabel>
+                              <StatNumber>{group.invoiceCount}</StatNumber>
+                            </Stat>
+                          </CardBody>
+                        </Card>
+                      </WrapItem>
+                    ))}
+                  </Wrap>
+                )}
+              </>
+            )}
+
+            {/* كلمات مفتاحية مخصصة */}
+            {groupingMode === "customKeyword" && (
+              <>
+                <Flex mb={4} gap={2}>
+                  <InputGroup>
+                    <InputLeftElement pointerEvents="none">
+                      <SearchIcon color="gray.300" />
+                    </InputLeftElement>
+                    <Input
+                      placeholder="أدخل كلمات مفتاحية مفصولة بمسافات أو فواصل، مثلاً: شاورما بطاطا"
+                      value={customKeywords}
+                      onChange={(e) => setCustomKeywords(e.target.value)}
+                    />
+                  </InputGroup>
+                  <Button colorScheme="blue" onClick={handleKeywordGrouping}>
+                    تجميع
+                  </Button>
+                </Flex>
+                {customGroups.length === 0 ? (
+                  <Text>
+                    {customKeywords.trim()
+                      ? "لا توجد مبيعات تطابق الكلمات المفتاحية."
+                      : "أدخل كلمات مفتاحية ثم اضغط تجميع."}
+                  </Text>
+                ) : (
+                  <Wrap spacing={6}>
+                    {customGroups.map((group) => (
+                      <WrapItem key={group.keyword}>
+                        <Card
+                          minW="260px"
+                          bg={bgCard}
+                          borderTop="4px solid"
+                          borderTopColor="orange.500"
+                          boxShadow="md">
+                          <CardBody>
+                            <Heading size="md" mb={2}>
+                              {group.keyword}
+                            </Heading>
+                            <Stat mb={2}>
+                              <StatLabel>إجمالي المبلغ</StatLabel>
+                              <StatNumber color="orange.500">
+                                {formatNumber(group.totalAmount)} ₪
+                              </StatNumber>
+                            </Stat>
+                            <Stat mb={2}>
+                              <StatLabel>الكمية المباعة</StatLabel>
+                              <StatNumber>{group.totalQuantity}</StatNumber>
+                            </Stat>
+                            <Stat>
+                              <StatLabel>عدد الفواتير</StatLabel>
+                              <StatNumber>{group.invoiceCount}</StatNumber>
+                            </Stat>
+                          </CardBody>
+                        </Card>
+                      </WrapItem>
+                    ))}
+                  </Wrap>
+                )}
+              </>
+            )}
+
+            {/* تجميع حسب الأصناف */}
+            {groupingMode === "category" && (
+              <>
+                {categoryGroups.length === 0 ? (
+                  <Text>لا توجد مبيعات ضمن الأصناف.</Text>
+                ) : (
+                  <Wrap spacing={6}>
+                    {categoryGroups.map((group) => (
+                      <WrapItem key={group.categoryId}>
+                        <Card
+                          minW="260px"
+                          bg={bgCard}
+                          borderTop="4px solid"
+                          borderTopColor="purple.500"
+                          boxShadow="md">
+                          <CardBody>
+                            <Heading size="md" mb={2}>
+                              {group.categoryName}
+                            </Heading>
+                            <Stat mb={2}>
+                              <StatLabel>إجمالي المبلغ</StatLabel>
+                              <StatNumber color="purple.500">
+                                {formatNumber(group.totalAmount)} ₪
+                              </StatNumber>
+                            </Stat>
+                            <Stat mb={2}>
+                              <StatLabel>الكمية المباعة</StatLabel>
+                              <StatNumber>{group.totalQuantity}</StatNumber>
+                            </Stat>
+                            <Stat>
+                              <StatLabel>عدد الفواتير</StatLabel>
+                              <StatNumber>{group.invoiceCount}</StatNumber>
+                            </Stat>
+                          </CardBody>
+                        </Card>
+                      </WrapItem>
+                    ))}
+                  </Wrap>
+                )}
+              </>
             )}
           </TabPanel>
         </TabPanels>
