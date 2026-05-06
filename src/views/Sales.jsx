@@ -52,7 +52,7 @@ export const Sales = () => {
   const [tabIndex, setTabIndex] = useState(0);
   const [allTotal, setAllTotal] = useState(0);
   const [allCount, setAllCount] = useState(0);
-  const [groupingMode, setGroupingMode] = useState("exact"); // 'exact', 'customKeyword', 'category'
+  const [groupingMode, setGroupingMode] = useState("exact");
   const [customKeywords, setCustomKeywords] = useState("");
   const [customGroups, setCustomGroups] = useState([]);
 
@@ -84,6 +84,7 @@ export const Sales = () => {
     return item.price < basePrice;
   };
 
+  // تجميع المبيعات حسب السعر (للتقرير المجمع) - تحسين الكروت
   const aggregatedSales = getAggregatedSalesByMeal().map((sale) => {
     const meal = meals.find((m) => m.id === sale.mealId);
     const basePrice = getBasePrice(meal, sale.type);
@@ -253,7 +254,7 @@ export const Sales = () => {
 
   // ---- تجميع حسب الأصناف ----
   const categoryGroups = useMemo(() => {
-    const groups = new Map(); // key = categoryId
+    const groups = new Map();
     invoices.forEach((inv) => {
       inv.items.forEach((item) => {
         const meal = meals.find((m) => m.id === item.mealId);
@@ -282,8 +283,8 @@ export const Sales = () => {
 
   const bgCard = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.700");
-  const redBg = useColorModeValue("red.50", "red.900");
-  const redBorder = useColorModeValue("red.300", "red.700");
+  const redBg = useColorModeValue("red.100", "red.800");
+  const redBorder = useColorModeValue("red.400", "red.600");
 
   return (
     <Box>
@@ -424,72 +425,108 @@ export const Sales = () => {
             )}
           </TabPanel>
 
-          {/* التقرير المجمع */}
+          {/* 👇 تبويب تقرير المبيعات المجمّع (حسب السعر) - كروت أصغر وأكثر تراصاً */}
           <TabPanel p={0} pt={4}>
             {aggregatedSales.length === 0 ? (
               <Text>لا توجد مبيعات مسجلة.</Text>
             ) : (
-              <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
+              <SimpleGrid
+                columns={{ base: 1, sm: 2, md: 3, lg: 4, xl: 5 }}
+                spacing={4}>
                 {aggregatedSales.map((sale, idx) => (
                   <Card
                     key={idx}
                     bg={sale.discounted ? redBg : bgCard}
-                    borderWidth="2px"
+                    borderWidth="1px"
                     borderColor={sale.discounted ? redBorder : borderColor}
                     borderRadius="lg"
+                    boxShadow="sm"
                     transition="all 0.2s"
-                    _hover={{ transform: "scale(1.02)" }}>
-                    <CardBody>
-                      <Heading size="md" mb={2}>
-                        {sale.mealName}
-                      </Heading>
+                    _hover={{ transform: "translateY(-3px)", boxShadow: "md" }}
+                    size="sm">
+                    <CardBody p={3}>
+                      {/* السطر الأول: الاسم + شارة المخفض (إن وجد) */}
+                      <Flex
+                        justifyContent="space-between"
+                        alignItems="center"
+                        mb={1}>
+                        <Text fontWeight="bold" fontSize="md" noOfLines={1}>
+                          {sale.mealName}
+                        </Text>
+                        {sale.discounted && (
+                          <Badge colorScheme="red" fontSize="xs">
+                            تخفيض
+                          </Badge>
+                        )}
+                      </Flex>
+                      {/* السطر الثاني: النوع */}
                       <Badge
-                        mb={3}
+                        mb={2}
                         colorScheme={
                           sale.type === "sandwich"
                             ? "orange"
                             : sale.type === "meal"
                               ? "green"
                               : "purple"
-                        }>
+                        }
+                        fontSize="xs"
+                        alignSelf="flex-start">
                         {sale.type === "sandwich"
                           ? "صندويشة"
                           : sale.type === "meal"
                             ? "وجبة كاملة"
                             : "مادة مفردة"}
                       </Badge>
-                      {sale.discounted && (
-                        <Badge ml={2} colorScheme="red">
-                          مخفض
-                        </Badge>
-                      )}
-                      <Stat mt={2}>
-                        <StatLabel>سعر البيع</StatLabel>
-                        <StatNumber>{formatNumber(sale.price)} ₪</StatNumber>
-                        {sale.basePrice && (
-                          <StatHelpText>
-                            السعر الأساسي: {formatNumber(sale.basePrice)} ₪
+                      {/* السطر الثالث: السعر */}
+                      <Flex justify="space-between" mb={1}>
+                        <Text fontSize="sm" color="gray.500">
+                          سعر البيع:
+                        </Text>
+                        <Text
+                          fontSize="md"
+                          fontWeight="bold"
+                          color={sale.discounted ? "red.600" : "blue.600"}>
+                          {formatNumber(sale.price)} ₪
+                        </Text>
+                      </Flex>
+                      {/* السعر الأساسي والتخفيض إن وجد */}
+                      {sale.basePrice && (
+                        <Flex justify="space-between" mb={1}>
+                          <Text fontSize="xs" color="gray.500">
+                            السعر الأساسي:
+                          </Text>
+                          <Text fontSize="xs" color="gray.500">
+                            {formatNumber(sale.basePrice)} ₪
                             {sale.discounted &&
-                              ` (تخفيض ${formatNumber(
-                                sale.basePrice - sale.price,
-                              )} ₪)`}
-                          </StatHelpText>
-                        )}
-                      </Stat>
-                      <Stat>
-                        <StatLabel>الكمية المباعة</StatLabel>
-                        <StatNumber>{sale.totalQuantity}</StatNumber>
-                      </Stat>
-                      <Stat>
-                        <StatLabel>الإجمالي</StatLabel>
-                        <StatNumber>
+                              ` (-${formatNumber(sale.basePrice - sale.price)} ₪)`}
+                          </Text>
+                        </Flex>
+                      )}
+                      {/* السطر الرابع: الكمية */}
+                      <Flex justify="space-between" mb={1}>
+                        <Text fontSize="sm" color="gray.500">
+                          الكمية:
+                        </Text>
+                        <Text fontSize="sm" fontWeight="medium">
+                          {sale.totalQuantity}
+                        </Text>
+                      </Flex>
+                      {/* السطر الخامس: الإجمالي */}
+                      <Flex justify="space-between" mb={1}>
+                        <Text fontSize="sm" color="gray.500">
+                          الإجمالي:
+                        </Text>
+                        <Text fontSize="sm" fontWeight="bold">
                           {formatNumber(sale.totalAmount)} ₪
-                        </StatNumber>
-                      </Stat>
-                      <Stat>
-                        <StatLabel>عدد مرات البيع</StatLabel>
-                        <StatNumber>{sale.saleCount}</StatNumber>
-                      </Stat>
+                        </Text>
+                      </Flex>
+                      {/* السطر السادس: عدد مرات البيع */}
+                      <Flex justify="space-between">
+                        <Text fontSize="xs" color="gray.500">
+                          عدد مرات البيع:
+                        </Text>
+                        <Text fontSize="xs">{sale.saleCount}</Text>
+                      </Flex>
                     </CardBody>
                   </Card>
                 ))}
@@ -497,7 +534,7 @@ export const Sales = () => {
             )}
           </TabPanel>
 
-          {/* الإحصائيات الأسبوعية */}
+          {/* الإحصائيات الأسبوعية - بدون تغيير كبير */}
           <TabPanel p={0} pt={4}>
             <Card mb={4} bg={bgCard} borderColor={todayPerformance.color}>
               <CardBody>
@@ -569,7 +606,7 @@ export const Sales = () => {
             )}
           </TabPanel>
 
-          {/* تبويب تجميع المبيعات - ثلاثة خيارات */}
+          {/* تبويب تجميع المبيعات (بدون تعديل) */}
           <TabPanel p={0} pt={4}>
             <Flex mb={6} gap={4} wrap="wrap">
               <Button
@@ -608,16 +645,26 @@ export const Sales = () => {
                     {exactNameGroups.map((group) => (
                       <WrapItem key={group.name}>
                         <Card
-                          minW="260px"
+                          width="280px"
                           bg={bgCard}
-                          borderTop="4px solid"
-                          borderTopColor="teal.500"
-                          boxShadow="md">
+                          borderTop="8px solid"
+                          borderTopColor="teal.400"
+                          borderRadius="xl"
+                          boxShadow="md"
+                          transition="all 0.3s"
+                          _hover={{
+                            transform: "translateY(-6px)",
+                            boxShadow: "lg",
+                          }}>
                           <CardBody>
-                            <Heading size="md" mb={2}>
+                            <Heading size="md" mb={2} textAlign="center">
                               {group.name}
                             </Heading>
-                            <Badge mb={3} colorScheme="teal">
+                            <Badge
+                              mb={3}
+                              colorScheme="teal"
+                              display="block"
+                              textAlign="center">
                               {group.displayType === "sandwich"
                                 ? "صندويشة"
                                 : group.displayType === "meal"
@@ -627,18 +674,24 @@ export const Sales = () => {
                                     : "أنواع متعددة"}
                             </Badge>
                             <Stat mb={2}>
-                              <StatLabel>إجمالي المبلغ</StatLabel>
-                              <StatNumber color="teal.500">
+                              <StatLabel fontSize="sm">إجمالي المبلغ</StatLabel>
+                              <StatNumber fontSize="2xl" color="teal.600">
                                 {formatNumber(group.totalAmount)} ₪
                               </StatNumber>
                             </Stat>
                             <Stat mb={2}>
-                              <StatLabel>الكمية المباعة</StatLabel>
-                              <StatNumber>{group.totalQuantity}</StatNumber>
+                              <StatLabel fontSize="sm">
+                                الكمية المباعة
+                              </StatLabel>
+                              <StatNumber fontSize="md">
+                                {group.totalQuantity}
+                              </StatNumber>
                             </Stat>
                             <Stat>
-                              <StatLabel>عدد الفواتير</StatLabel>
-                              <StatNumber>{group.invoiceCount}</StatNumber>
+                              <StatLabel fontSize="sm">عدد الفواتير</StatLabel>
+                              <StatNumber fontSize="md">
+                                {group.invoiceCount}
+                              </StatNumber>
                             </Stat>
                           </CardBody>
                         </Card>
@@ -678,28 +731,40 @@ export const Sales = () => {
                     {customGroups.map((group) => (
                       <WrapItem key={group.keyword}>
                         <Card
-                          minW="260px"
+                          width="280px"
                           bg={bgCard}
-                          borderTop="4px solid"
-                          borderTopColor="orange.500"
-                          boxShadow="md">
+                          borderTop="8px solid"
+                          borderTopColor="orange.400"
+                          borderRadius="xl"
+                          boxShadow="md"
+                          transition="all 0.3s"
+                          _hover={{
+                            transform: "translateY(-6px)",
+                            boxShadow: "lg",
+                          }}>
                           <CardBody>
-                            <Heading size="md" mb={2}>
+                            <Heading size="md" mb={2} textAlign="center">
                               {group.keyword}
                             </Heading>
                             <Stat mb={2}>
-                              <StatLabel>إجمالي المبلغ</StatLabel>
-                              <StatNumber color="orange.500">
+                              <StatLabel fontSize="sm">إجمالي المبلغ</StatLabel>
+                              <StatNumber fontSize="2xl" color="orange.600">
                                 {formatNumber(group.totalAmount)} ₪
                               </StatNumber>
                             </Stat>
                             <Stat mb={2}>
-                              <StatLabel>الكمية المباعة</StatLabel>
-                              <StatNumber>{group.totalQuantity}</StatNumber>
+                              <StatLabel fontSize="sm">
+                                الكمية المباعة
+                              </StatLabel>
+                              <StatNumber fontSize="md">
+                                {group.totalQuantity}
+                              </StatNumber>
                             </Stat>
                             <Stat>
-                              <StatLabel>عدد الفواتير</StatLabel>
-                              <StatNumber>{group.invoiceCount}</StatNumber>
+                              <StatLabel fontSize="sm">عدد الفواتير</StatLabel>
+                              <StatNumber fontSize="md">
+                                {group.invoiceCount}
+                              </StatNumber>
                             </Stat>
                           </CardBody>
                         </Card>
@@ -720,28 +785,40 @@ export const Sales = () => {
                     {categoryGroups.map((group) => (
                       <WrapItem key={group.categoryId}>
                         <Card
-                          minW="260px"
+                          width="280px"
                           bg={bgCard}
-                          borderTop="4px solid"
-                          borderTopColor="purple.500"
-                          boxShadow="md">
+                          borderTop="8px solid"
+                          borderTopColor="purple.400"
+                          borderRadius="xl"
+                          boxShadow="md"
+                          transition="all 0.3s"
+                          _hover={{
+                            transform: "translateY(-6px)",
+                            boxShadow: "lg",
+                          }}>
                           <CardBody>
-                            <Heading size="md" mb={2}>
+                            <Heading size="md" mb={2} textAlign="center">
                               {group.categoryName}
                             </Heading>
                             <Stat mb={2}>
-                              <StatLabel>إجمالي المبلغ</StatLabel>
-                              <StatNumber color="purple.500">
+                              <StatLabel fontSize="sm">إجمالي المبلغ</StatLabel>
+                              <StatNumber fontSize="2xl" color="purple.600">
                                 {formatNumber(group.totalAmount)} ₪
                               </StatNumber>
                             </Stat>
                             <Stat mb={2}>
-                              <StatLabel>الكمية المباعة</StatLabel>
-                              <StatNumber>{group.totalQuantity}</StatNumber>
+                              <StatLabel fontSize="sm">
+                                الكمية المباعة
+                              </StatLabel>
+                              <StatNumber fontSize="md">
+                                {group.totalQuantity}
+                              </StatNumber>
                             </Stat>
                             <Stat>
-                              <StatLabel>عدد الفواتير</StatLabel>
-                              <StatNumber>{group.invoiceCount}</StatNumber>
+                              <StatLabel fontSize="sm">عدد الفواتير</StatLabel>
+                              <StatNumber fontSize="md">
+                                {group.invoiceCount}
+                              </StatNumber>
                             </Stat>
                           </CardBody>
                         </Card>

@@ -1,5 +1,5 @@
 // src/views/Save.jsx
-import React from "react";
+import React, { useState, useRef } from "react";
 import {
   Box,
   Heading,
@@ -27,8 +27,14 @@ import {
   Th,
   Td,
   Badge,
+  Input,
+  FormControl,
+  FormLabel,
 } from "@chakra-ui/react";
 import { useApp } from "../context/data";
+
+// كلمة السر الثابتة
+const MASTER_PASSWORD = "admin123";
 
 export const Save = () => {
   const {
@@ -39,53 +45,71 @@ export const Save = () => {
     isTodayRecordSaved,
   } = useApp();
   const toast = useToast();
-  const { isOpen, onOpen, onClose } = useDisclosure();
-  const cancelRef = React.useRef();
+
+  // حوار إدخال كلمة السر
+  const {
+    isOpen: isPasswordOpen,
+    onOpen: onPasswordOpen,
+    onClose: onPasswordClose,
+  } = useDisclosure();
+  const cancelRef = useRef();
+  const passwordInputRef = useRef();
+
+  const [password, setPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
 
   const todayTotal = getTotalSalesToday();
   const todaySaved = isTodayRecordSaved();
 
-  const handleSaveToday = () => {
-    if (todayTotal === 0) {
+  const handleSaveAndReset = () => {
+    if (todayTotal === 0 && !todaySaved) {
       toast({
         title: "تنبيه",
-        description: "لا توجد مبيعات اليوم لحفظها",
-        status: "warning",
+        description: "لا توجد مبيعات اليوم لحفظها ولا توجد فواتير لتصفيرها.",
+        status: "info",
+        duration: 3000,
+      });
+      onPasswordClose();
+      return;
+    }
+    if (password !== MASTER_PASSWORD) {
+      setPasswordError("كلمة السر غير صحيحة");
+      return;
+    }
+    setPasswordError("");
+    if (todayTotal > 0) {
+      saveTodayRecord();
+      toast({
+        title: "تم الحفظ",
+        description: `تم حفظ إجمالي اليوم (${todayTotal} ₪) في السجل الأسبوعي.`,
+        status: "success",
+        duration: 3000,
+      });
+    }
+    resetAllInvoices();
+    toast({
+      title: "تم التصفير",
+      description: "تم حذف جميع الفواتير نهائياً.",
+      status: "info",
+      duration: 4000,
+    });
+    onPasswordClose();
+    setPassword("");
+  };
+
+  const openPasswordDialog = () => {
+    if (todayTotal === 0 && !todaySaved) {
+      toast({
+        title: "تنبيه",
+        description: "لا توجد مبيعات اليوم لحفظها ولا توجد فواتير لتصفيرها.",
+        status: "info",
         duration: 3000,
       });
       return;
     }
-    saveTodayRecord();
-    toast({
-      title: "تم الحفظ",
-      description: `تم حفظ إجمالي اليوم (${todayTotal} ₪) في سجل الأيام السبعة`,
-      status: "success",
-      duration: 3000,
-    });
-  };
-
-  const handleResetAll = () => {
-    // منع التصفير إذا كان اليوم يحتوي على مبيعات ولم يتم حفظ السجل
-    if (todayTotal > 0 && !todaySaved) {
-      toast({
-        title: "لا يمكن التصفير",
-        description:
-          "يجب حفظ إجمالي اليوم أولاً (زر حفظ الإجمالي) قبل تصفير جميع المبيعات.",
-        status: "warning",
-        duration: 5000,
-      });
-      return;
-    }
-    const success = resetAllInvoices();
-    if (success) {
-      toast({
-        title: "تم التصفير",
-        description: "تم حذف جميع الفواتير نهائياً.",
-        status: "info",
-        duration: 4000,
-      });
-    }
-    onClose();
+    setPassword("");
+    setPasswordError("");
+    onPasswordOpen();
   };
 
   return (
@@ -100,17 +124,19 @@ export const Save = () => {
               <StatNumber fontSize="3xl">{todayTotal} ₪</StatNumber>
               <StatHelpText>
                 {todaySaved
-                  ? "✓ تم حفظ هذا اليوم مسبقاً (يمكنك تحديثه بالضغط على زر الحفظ)"
+                  ? "✓ تم حفظ هذا اليوم مسبقاً (سيتم تحديثه عند الحفظ)"
                   : "⚠️ لم يتم حفظ هذا اليوم بعد"}
               </StatHelpText>
             </Stat>
             <Button
               colorScheme="blue"
-              onClick={handleSaveToday}
+              onClick={openPasswordDialog}
               mt={4}
               w="full"
-              isDisabled={todayTotal === 0}>
-              حفظ إجمالي اليوم في السجل الأسبوعي
+              isDisabled={
+                todayTotal === 0 && todaySaved && weeklyRecords.length === 0
+              }>
+              حفظ إجمالي اليوم وتصفير جميع المبيعات
             </Button>
           </CardBody>
         </Card>
@@ -126,7 +152,6 @@ export const Save = () => {
         </Card>
       </SimpleGrid>
 
-      {/* جدول عرض سجل الأيام السبعة */}
       <Card mt={6}>
         <CardBody>
           <Heading size="md" mb={4}>
@@ -174,53 +199,42 @@ export const Save = () => {
         </CardBody>
       </Card>
 
-      {/* زر تصفير جميع الفواتير */}
-      <Card
-        mt={6}
-        bg="red.50"
-        _dark={{ bg: "red.900" }}
-        borderLeft="4px solid red">
-        <CardBody>
-          <Heading size="md" mb={2}>
-            🗑️ تصفير جميع المبيعات
-          </Heading>
-          <Text mb={4}>
-            سيؤدي هذا الإجراء إلى حذف <strong>جميع الفواتير</strong> بشكل نهائي.
-            لا يمكن التراجع عنه.
-            {todayTotal > 0 && !todaySaved && (
-              <Text as="span" color="red.500" display="block" mt={2}>
-                ⚠️ ملاحظة: يجب حفظ إجمالي اليوم أولاً قبل التصفير.
-              </Text>
-            )}
-          </Text>
-          <Button
-            colorScheme="red"
-            onClick={onOpen}
-            isDisabled={todayTotal > 0 && !todaySaved}>
-            تصفير جميع المبيعات
-          </Button>
-        </CardBody>
-      </Card>
-
       <AlertDialog
-        isOpen={isOpen}
-        leastDestructiveRef={cancelRef}
-        onClose={onClose}>
+        isOpen={isPasswordOpen}
+        leastDestructiveRef={passwordInputRef}
+        onClose={onPasswordClose}>
         <AlertDialogOverlay>
           <AlertDialogContent>
             <AlertDialogHeader fontSize="lg" fontWeight="bold">
-              تأكيد تصفير جميع المبيعات
+              تأكيد العملية
             </AlertDialogHeader>
             <AlertDialogBody>
-              هل أنت متأكد من رغبتك في حذف جميع الفواتير؟ سيتم حذف البيانات
-              نهائياً.
+              <Text mb={3}>
+                سيتم حفظ إجمالي اليوم (إن وجد) ثم حذف جميع الفواتير نهائياً.
+              </Text>
+              <FormControl isInvalid={!!passwordError}>
+                <FormLabel>أدخل كلمة السر:</FormLabel>
+                <Input
+                  ref={passwordInputRef}
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyPress={(e) => e.key === "Enter" && handleSaveAndReset()}
+                  placeholder="********"
+                />
+                {passwordError && (
+                  <Text color="red.500" fontSize="sm" mt={1}>
+                    {passwordError}
+                  </Text>
+                )}
+              </FormControl>
             </AlertDialogBody>
             <AlertDialogFooter>
-              <Button ref={cancelRef} onClick={onClose}>
+              <Button ref={cancelRef} onClick={onPasswordClose}>
                 إلغاء
               </Button>
-              <Button colorScheme="red" onClick={handleResetAll} ml={3}>
-                تصفير الكل
+              <Button colorScheme="blue" onClick={handleSaveAndReset} ml={3}>
+                تأكيد
               </Button>
             </AlertDialogFooter>
           </AlertDialogContent>
